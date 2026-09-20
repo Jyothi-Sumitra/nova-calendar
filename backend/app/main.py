@@ -48,6 +48,11 @@ app.add_middleware(
 app.include_router(events_router)
 app.include_router(nova_router)
 
+# Vercel Services forwards /api/* requests to this FastAPI service.
+# Keep the local routes above and expose the same API under /api/*.
+app.include_router(events_router, prefix="/api")
+app.include_router(nova_router, prefix="/api")
+
 
 # ---------------------------------------------------------
 # Basic routes
@@ -67,11 +72,26 @@ def health_check():
     }
 
 
+@app.get("/api")
+def api_root():
+    return {
+        "message": "AI Calendar Assistant API is running!"
+    }
+
+
+@app.get("/api/health")
+def api_health_check():
+    return {
+        "status": "healthy"
+    }
+
+
 # ---------------------------------------------------------
 # NOVA Voice
 # ---------------------------------------------------------
 
 @app.post("/voice/transcribe")
+@app.post("/api/voice/transcribe")
 async def transcribe_voice(audio: UploadFile = File(...)):
     """NOVA voice bridge used by the calendar assistant's microphone control."""
 
