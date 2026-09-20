@@ -7,8 +7,17 @@ from sqlalchemy.orm import sessionmaker
 load_dotenv()
 
 # Local development keeps using the existing SQLite database.
-# Production can set DATABASE_URL to the Supabase PostgreSQL connection string.
+# Production uses the Supabase PostgreSQL connection string from DATABASE_URL.
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./calendar.db")
+
+# SQLAlchemy's bare postgresql:// URL normally expects psycopg2.
+# This project uses psycopg v3, so explicitly select the psycopg driver.
+if DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace(
+        "postgresql://",
+        "postgresql+psycopg://",
+        1,
+    )
 
 engine_kwargs = {}
 
