@@ -1,5 +1,6 @@
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.models.event import Event, Base
 from app.database.connection import engine
@@ -41,6 +42,26 @@ def root():
 @app.get("/api/health")
 def health_check():
     return {"status": "healthy"}
+
+
+@app.get("/api/health/db")
+def database_health_check():
+    """Temporary production diagnostic for the active SQLAlchemy database."""
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+        return {
+            "status": "healthy",
+            "database_driver": engine.url.drivername,
+            "database_name": engine.url.database,
+        }
+    except Exception as error:
+        return {
+            "status": "unhealthy",
+            "database_driver": engine.url.drivername,
+            "error_type": type(error).__name__,
+            "error": str(error),
+        }
 
 
 @app.post("/api/voice/transcribe")
