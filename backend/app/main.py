@@ -2,13 +2,10 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
-from app.models.event import Event, Base
 from app.database.connection import engine
 from app.database.events import router as events_router
 from app.api.nova import router as nova_router
 from app.services.speech import transcribe_audio
-
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="AI Calendar Assistant",
