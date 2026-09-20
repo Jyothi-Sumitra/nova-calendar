@@ -1,4 +1,4 @@
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 import re
 
 from sqlalchemy.orm import Session
@@ -14,7 +14,7 @@ from app.services.scheduling import (
 WEEKDAYS = {day.lower(): index for index, day in enumerate(("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"))}
 
 
-def _date(value: str | None, now: datetime) -> datetime.date | None:
+def _date(value: str | None, now: datetime) -> date | None:
     if not value:
         return None
     value = value.strip().lower()
@@ -70,6 +70,7 @@ def _matches(db: Session, query: str) -> list[Event]:
 def _ambiguous(events: list[Event]) -> dict:
     return {"ok": False, "status": "ambiguous", "message": "I found more than one matching event. Which one do you mean?", "events": [_event_payload(event) for event in events]}
 
+
 def _free_slots_for_day(
     db: Session,
     day,
@@ -91,7 +92,6 @@ def _free_slots_for_day(
         .all()
     )
 
-    # Clip events to the requested day.
     busy_periods = []
 
     for event in events:
@@ -101,7 +101,6 @@ def _free_slots_for_day(
         if end > start:
             busy_periods.append((start, end))
 
-    # Merge overlapping events.
     merged = []
 
     for start, end in busy_periods:
@@ -110,11 +109,9 @@ def _free_slots_for_day(
         else:
             merged[-1][1] = max(merged[-1][1], end)
 
-    # Find the gaps.
     free_slots = []
     cursor = day_start
 
-    # Don't report time in the past when checking today.
     if now and day == now.date():
         cursor = max(cursor, now)
 
@@ -134,6 +131,7 @@ def _free_slots_for_day(
         })
 
     return free_slots
+
 
 def execute_intent(db: Session, intent: CalendarIntent, now: datetime | None = None) -> dict:
     """Execute only a validated, structured NOVA intent; the model never gets DB access."""
@@ -164,209 +162,72 @@ def execute_intent(db: Session, intent: CalendarIntent, now: datetime | None = N
 
     if intent.intent == "GET_CONFLICTS":
         conflicts = find_all_conflicts(db)
-
         if not conflicts:
-            return {
-                "ok": True,
-                "status": "success",
-                "message": "You don't have any calendar conflicts.",
-                "conflicts": []
-            }
-
-        return {
-            "ok": True,
-            "status": "conflicts_found",
-            "message": (
-                f"I found {len(conflicts)} calendar "
-                f"conflict{'s' if len(conflicts) != 1 else ''}."
-            ),
-            "conflicts": conflicts
-        }
+            return {"ok": True, "status": "success", "message": "You don't have any calendar conflicts.", "conflicts": []}
+        return {"ok": True, "status": "conflicts_found", "message": f"I found {len(conflicts)} calendar conflict{'s' if len(conflicts) != 1 else ''}.", "conflicts": conflicts}
 
     if intent.intent == "GET_FREE_SLOTS":
         day = _date(intent.date, now)
-
         if intent.date and not day:
-            return {
-                "ok": False,
-                "status": "invalid_date",
-                "message": "I couldn't understand that date. Please use a date such as today, tomorrow, or next Monday."
-            }
-
-        # If no date was specified, use today.
+            return {"ok": False, "status": "invalid_date", "message": "I couldn't understand that date. Please use a date such as today, tomorrow, or next Monday."}
         day = day or now.date()
-
         free_slots = _free_slots_for_day(db, day, now)
-
         label = f"{day:%A, %B} {day.day}"
-
         if not free_slots:
-            return {
-                "ok": True,
-                "status": "success",
-                "message": f"You don't have any free time on {label}.",
-                "free_slots": []
-            }
-
-        return {
-            "ok": True,
-            "status": "success",
-            "message": f"Here are your available time slots on {label}.",
-            "free_slots": free_slots
-        }
+            return {"ok": True, "status": "success", "message": f"You don't have any free time on {label}.", "free_slots": []}
+        return {"ok": True, "status": "success", "message": f"Here are your available time slots on {label}.", "free_slots": free_slots}
 
     if intent.intent == "CREATE_EVENT":
         day = _date(intent.date, now)
         start_clock = _time(intent.start_time)
-
         if not intent.title or not day or not start_clock:
-            return {
-                "ok": False,
-                "status": "missing_details",
-                "message": "I need an event title, date, and start time before I can create it."
-            }
-
+            return {"ok": False, "status": "missing_details", "message": "I need an event title, date, and start time before I can create it."}
         start = datetime.combine(day, start_clock)
-
         end_clock = _time(intent.end_time)
-        end = (
-            datetime.combine(day, end_clock)
-            if end_clock
-            else start + timedelta(minutes=intent.duration_minutes or 60)
-        )
-
+        end = datetime.combine(day, end_clock) if end_clock else start + timedelta(minutes=intent.duration_minutes or 60)
         if end <= start:
-            return {
-                "ok": False,
-                "status": "invalid_time",
-                "message": "The end time must be after the start time."
-            }
-
+            return {"ok": False, "status": "invalid_time", "message": "The end time must be after the start time."}
         conflict = get_conflict_details(db, start, end)
-
         if conflict["has_conflict"]:
-            return {
-                "ok": False,
-                "status": "conflict",
-                "message": "I couldn't create that event because it conflicts with your calendar.",
-                "conflicts": conflict["conflicts"]
-            }
-
-        event = Event(
-            title=intent.title,
-            start_time=start,
-            end_time=end,
-            category="meeting",
-            priority="medium",
-            status="scheduled"
-        )
-
+            return {"ok": False, "status": "conflict", "message": "I couldn't create that event because it conflicts with your calendar.", "conflicts": conflict["conflicts"]}
+        event = Event(title=intent.title, start_time=start, end_time=end, category="meeting", priority="medium", status="scheduled")
         db.add(event)
         db.commit()
         db.refresh(event)
-
-        return {
-            "ok": True,
-            "status": "created",
-            "message": (
-                f"Done. I've scheduled {event.title} for "
-                f"{event.start_time.strftime('%I:%M %p').lstrip('0')}."
-            ),
-            "events": [_event_payload(event)],
-            "changed": True
-        }
+        return {"ok": True, "status": "created", "message": f"Done. I've scheduled {event.title} for {event.start_time.strftime('%I:%M %p').lstrip('0')}.", "events": [_event_payload(event)], "changed": True}
 
     if intent.intent in {"DELETE_EVENT", "RESCHEDULE_EVENT"}:
         if not intent.event_query:
-            return {
-                "ok": False,
-                "status": "missing_event",
-                "message": "Please tell me which event you mean."
-            }
-
+            return {"ok": False, "status": "missing_event", "message": "Please tell me which event you mean."}
         matches = _matches(db, intent.event_query)
-
         if not matches:
-            return {
-                "ok": False,
-                "status": "not_found",
-                "message": f"I couldn't find an event matching '{intent.event_query}'."
-            }
-
+            return {"ok": False, "status": "not_found", "message": f"I couldn't find an event matching '{intent.event_query}'."}
         if len(matches) > 1:
             return _ambiguous(matches)
-
         event = matches[0]
 
         if intent.intent == "DELETE_EVENT":
             title = event.title
-
             db.delete(event)
             db.commit()
+            return {"ok": True, "status": "deleted", "message": f"Done. I've deleted {title}.", "changed": True}
 
-            return {
-                "ok": True,
-                "status": "deleted",
-                "message": f"Done. I've deleted {title}.",
-                "changed": True
-            }
+        day = _date(intent.date, now) or event.start_time.date()
+        start_clock = _time(intent.start_time)
+        if not start_clock:
+            return {"ok": False, "status": "missing_details", "message": "I need the new start time to reschedule that event."}
+        start = datetime.combine(day, start_clock)
+        end_clock = _time(intent.end_time)
+        end = datetime.combine(day, end_clock) if end_clock else start + (event.end_time - event.start_time)
+        if end <= start:
+            return {"ok": False, "status": "invalid_time", "message": "The new end time must be after the start time."}
+        conflict = get_conflict_details(db, start, end, exclude_event_id=event.id)
+        if conflict["has_conflict"]:
+            return {"ok": False, "status": "conflict", "message": f"I couldn't move {event.title} because that time conflicts with your calendar.", "conflicts": conflict["conflicts"]}
+        event.start_time = start
+        event.end_time = end
+        db.commit()
+        db.refresh(event)
+        return {"ok": True, "status": "rescheduled", "message": f"Done. I've moved {event.title} to {event.start_time.strftime('%I:%M %p').lstrip('0')}.", "events": [_event_payload(event)], "changed": True}
 
-        if intent.intent == "RESCHEDULE_EVENT":
-            day = _date(intent.date, now) or event.start_time.date()
-            start_clock = _time(intent.start_time)
-
-            if not start_clock:
-                return {
-                    "ok": False,
-                    "status": "missing_details",
-                    "message": "I need the new start time to reschedule that event."
-                }
-
-            start = datetime.combine(day, start_clock)
-
-            end_clock = _time(intent.end_time)
-
-            end = (
-                datetime.combine(day, end_clock)
-                if end_clock
-                else start + (event.end_time - event.start_time)
-            )
-
-            if end <= start:
-                return {
-                    "ok": False,
-                    "status": "invalid_time",
-                    "message": "The new end time must be after the start time."
-                }
-
-            conflict = get_conflict_details(
-                db,
-                start,
-                end,
-                exclude_event_id=event.id
-            )
-
-            if conflict["has_conflict"]:
-                return {
-                    "ok": False,
-                    "status": "conflict",
-                    "message": f"I couldn't move {event.title} because that time conflicts with your calendar.",
-                    "conflicts": conflict["conflicts"]
-                }
-
-            event.start_time = start
-            event.end_time = end
-
-            db.commit()
-            db.refresh(event)
-
-            return {
-                "ok": True,
-                "status": "rescheduled",
-                "message": (
-                    f"Done. I've moved {event.title} to "
-                    f"{event.start_time.strftime('%I:%M %p').lstrip('0')}."
-                ),
-                "events": [_event_payload(event)],
-                "changed": True
-            }
+    return {"ok": False, "status": "unknown", "message": "I can view, create, reschedule, or delete calendar events. Please try again."}
