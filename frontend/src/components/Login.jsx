@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import './Login.css';
 
-export default function Login({ onCreateAccount, onForgotPassword }) {
+export default function Login({ onCreateAccount, onForgotPassword, onGuestLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -543,6 +543,34 @@ export default function Login({ onCreateAccount, onForgotPassword }) {
                 Create an account
               </button>
             </p>
+
+            {onGuestLogin && (
+              <div style={{ marginTop: 14 }}>
+                <button
+                  type="button"
+                  onClick={onGuestLogin}
+                  style={{
+                    background: 'rgba(244, 114, 182, 0.12)',
+                    border: '1px solid rgba(244, 114, 182, 0.35)',
+                    color: '#f472b6',
+                    borderRadius: 10,
+                    padding: '9px 18px',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <span>✨</span>
+                  <span>Explore as Guest (Instant Access)</span>
+                </button>
+              </div>
+            )}
 
           </div>
 

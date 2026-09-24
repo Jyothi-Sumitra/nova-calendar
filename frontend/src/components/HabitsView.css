@@ -1,0 +1,238 @@
+/* =========================================================
+   NOVA HABITS VIEW — Gilded Glass Aesthetic
+   ========================================================= */
+
+.habits-view {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  width: 100%;
+  animation: fadeInHabits 0.28s ease-out;
+}
+
+@keyframes fadeInHabits {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.habits-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.habits-title-group h2 {
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 26px;
+  font-weight: 650;
+  color: var(--text, #f0f0f4);
+  margin: 0 0 4px 0;
+  letter-spacing: -0.025em;
+}
+
+.habits-title-group p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary, #a5a7b1);
+}
+
+/* Habit Stats Cards */
+.habits-stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.habit-stat-box {
+  background: linear-gradient(145deg, rgba(20, 25, 34, 0.85), rgba(13, 16, 23, 0.9));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.habit-stat-box:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+}
+
+.habit-stat-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  background: rgba(232, 106, 155, 0.14);
+  color: #f472b6;
+  border: 1px solid rgba(232, 106, 155, 0.25);
+  box-shadow: 0 0 14px rgba(232, 106, 155, 0.15);
+}
+
+.habit-stat-data strong {
+  display: block;
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+  font-family: var(--serif, 'Playfair Display', serif);
+}
+
+.habit-stat-data span {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #9da1b0;
+}
+
+/* Habits List */
+.habits-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.habit-card {
+  background: linear-gradient(145deg, rgba(20, 25, 34, 0.8), rgba(13, 16, 23, 0.85));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.22);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.habit-card:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.32);
+}
+
+.habit-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.habit-card-info h3 {
+  font-family: var(--serif, 'Playfair Display', serif);
+  font-size: 17px;
+  font-weight: 650;
+  color: var(--text, #f0f0f4);
+  margin: 0 0 4px 0;
+}
+
+.habit-card-info p {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-secondary, #a5a7b1);
+}
+
+.habit-streak-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(232, 106, 155, 0.15);
+  color: #f18ab2;
+  border: 1px solid rgba(232, 106, 155, 0.35);
+}
+
+/* Week Days Tracker Bar */
+.habit-days-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  padding: 10px 14px;
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.habit-day-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 40px;
+}
+
+.habit-day-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary, #a5a7b1);
+  text-transform: uppercase;
+}
+
+.habit-day-date {
+  font-size: 11px;
+  color: var(--text-muted, #686b76);
+}
+
+.habit-day-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: transparent;
+  font-size: 14px;
+  font-weight: bold;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.habit-day-btn:hover {
+  border-color: #e86a9b;
+  transform: scale(1.08);
+}
+
+.habit-day-btn--done {
+  background: linear-gradient(135deg, #10b981, #059669);
+  border-color: #059669;
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(16, 185, 129, 0.3);
+}
+
+.habit-day-btn--today {
+  border-color: #e86a9b;
+  border-width: 2.5px;
+}
+
+.habit-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-muted, #686b76);
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}

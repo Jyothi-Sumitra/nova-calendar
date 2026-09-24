@@ -3,6 +3,10 @@ import { supabase } from './lib/supabase';
 import './App.css';
 import Login from './components/Login';
 import CreateAccount from './components/CreateAccount';
+import NotesView from './components/NotesView';
+import TodoView from './components/TodoView';
+import HabitsView from './components/HabitsView';
+import SettingsModal from './components/SettingsModal';
 
 /* ============================== ICONS ============================== */
 const Icon = {
@@ -52,7 +56,7 @@ const CATEGORIES = [
   { id: 'work', label: 'Work', color: '#2C5282' },
   { id: 'personal', label: 'Personal', color: '#146B54' },
   { id: 'health', label: 'Health', color: '#A23B3B' },
-  { id: 'focus', label: 'Focus', color: '#C9A227' },
+  { id: 'focus', label: 'Focus', color: '#9786e8' },
   { id: 'meeting', label: 'Meeting', color: '#0E6E76' },
 ];
 const PRIORITIES = ['Low', 'Medium', 'High'];
@@ -191,16 +195,47 @@ function TimedEventCard({ event, onClick, style }) {
 }
 
 /* ============================== SIDEBAR ============================== */
-function Sidebar({ view, setView, currentDate, goToday, activeCats, toggleCat, mobileOpen, closeMobile }) {
-  const [activeSection, setActiveSection] = useState('calendar');
+function Sidebar({
+  view,
+  setView,
+  currentDate,
+  goToday,
+  activeCats,
+  toggleCat,
+  mobileOpen,
+  closeMobile,
+  currentSection = 'calendar',
+  setCurrentSection,
+  onOpenSettings,
+}) {
   const nav = [
-    // { id: 'home', label: 'Home', icon: Icon.Sun, action: goToday },
-    { id: 'calendar', label: 'Calendar', icon: Icon.Cal, action: () => setView('month') },
-    // { id: 'task', label: 'Task', icon: Icon.Task, action: () => {} },
-    // { id: 'travel', label: 'Travel', icon: Icon.Bolt, action: () => {} },
-    { id: 'habits', label: 'Habits', icon: Icon.Check, action: () => {} },
-    { id: 'notes', label: 'Notes', icon: Icon.List, action: () => {} },
-    { id: 'to-do', label: 'To-Do List', icon: Icon.Grid, action: () => {} },
+    {
+      id: 'calendar',
+      label: 'Calendar',
+      icon: Icon.Cal,
+      action: () => {
+        setCurrentSection?.('calendar');
+        setView('month');
+      },
+    },
+    {
+      id: 'habits',
+      label: 'Habits',
+      icon: Icon.Check,
+      action: () => setCurrentSection?.('habits'),
+    },
+    {
+      id: 'notes',
+      label: 'Notes',
+      icon: Icon.List,
+      action: () => setCurrentSection?.('notes'),
+    },
+    {
+      id: 'to-do',
+      label: 'To-Do List',
+      icon: Icon.Grid,
+      action: () => setCurrentSection?.('to-do'),
+    },
   ];
   return (
     <>
@@ -214,9 +249,8 @@ function Sidebar({ view, setView, currentDate, goToday, activeCats, toggleCat, m
         <nav className="side-nav">
           {nav.map((n) => (
             <button key={n.id}
-              className={`side-nav-item ${activeSection === n.id ? 'side-nav-item--active' : ''}`}
+              className={`side-nav-item ${currentSection === n.id ? 'side-nav-item--active' : ''}`}
               onClick={() => {
-                setActiveSection(n.id);
                 n.action();
                 closeMobile();
               }}
@@ -241,7 +275,13 @@ function Sidebar({ view, setView, currentDate, goToday, activeCats, toggleCat, m
         </div>
 
         <div className="side-footer">
-          <button className="side-nav-item">
+          <button
+            className="side-nav-item"
+            onClick={() => {
+              onOpenSettings?.();
+              closeMobile();
+            }}
+          >
             <Icon.Gear className="side-nav-icon" />
             <span>Settings</span>
           </button>
@@ -273,6 +313,8 @@ function TopBar({
   onOpenAI,
   onMenu,
   handleLogout,
+  currentSection = 'calendar',
+  onOpenSettings,
 }) {
   const [profileOpen, setProfileOpen] = useState(false);
 
@@ -309,7 +351,19 @@ function TopBar({
       <div className="topbar-right">
         <div className="search-box">
           <Icon.Search className="search-icon" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search events…" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={
+              currentSection === 'notes'
+                ? 'Search notes…'
+                : currentSection === 'to-do'
+                ? 'Search tasks…'
+                : currentSection === 'habits'
+                ? 'Search habits…'
+                : 'Search events…'
+            }
+          />
         </div>
 
         <button className="ai-trigger" onClick={onOpenAI}>
@@ -387,6 +441,19 @@ function TopBar({
       </div>
 
       <div className="profile-divider" />
+
+      <button
+        type="button"
+        className="profile-logout"
+        style={{ marginBottom: 4, color: 'var(--text, #f0f0f4)' }}
+        onClick={() => {
+          setProfileOpen(false);
+          onOpenSettings?.();
+        }}
+      >
+        <Icon.Gear />
+        <span>Settings & Preferences</span>
+      </button>
 
       <button
         type="button"
@@ -781,7 +848,7 @@ useEffect(() => {
 
           <div className="field">
             <label>Description</label>
-            <textarea value={form.description} onChange={set('description')} placeholder="Add notes or details" rows={3} />
+            <textarea value={form.description || ''} onChange={set('description')} placeholder="Add notes or details" rows={3} />
           </div>
 
           <div className="field-row">
@@ -966,22 +1033,37 @@ function AIPanel({ open, onClose, events, today, conflicts, onApplySuggestion, o
     setMessages((m) => [...m, { id: `u-${Date.now()}`, role: 'user', type: 'text', text: trimmed }]);
     setInput('');
     setThinking('NOVA is processing your calendar request...');
+
+    // Extract recent conversational context for multi-turn understanding
+    const history = messages
+      .slice(-6)
+      .map((m) => ({
+        role: m.role === 'ai' ? 'assistant' : 'user',
+        content: m.text || '',
+      }));
+
     try {
-      const resultResponse = await fetch(`${API_BASE}/nova/command`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ transcript: trimmed }) });
+      const resultResponse = await fetch(`${API_BASE}/nova/command`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript: trimmed, history }),
+      });
       const result = await resultResponse.json();
       if (!resultResponse.ok) throw new Error(result.detail || 'NOVA could not process that request.');
       setThinking(null);
       setMessages((m) => [
-  ...m,
-  {
-    id: `a-${Date.now()}`,
-    role: 'ai',
-    type: 'text',
-    text: result.message,
-    events: result.events || [],
-    freeSlots: result.free_slots || [],
-  },
-]);
+        ...m,
+        {
+          id: `a-${Date.now()}`,
+          role: 'ai',
+          type: 'text',
+          text: result.message,
+          events: result.events || [],
+          freeSlots: result.free_slots || [],
+          notes: result.notes || [],
+          todos: result.todos || [],
+        },
+      ]);
       if (result.changed) onCalendarChanged();
     } catch (error) {
       setThinking(null);
@@ -1125,6 +1207,40 @@ function AIPanel({ open, onClose, events, today, conflicts, onApplySuggestion, o
     ))}
   </div>
 )}
+
+{m.notes?.length > 0 && (
+  <div className="ai-events-list">
+    {m.notes.map((note) => (
+      <div key={note.id} className="ai-event-card" style={{ borderLeft: '3px solid var(--pink, #e86a9b)' }}>
+        <div className="ai-event-card-top">
+          <div className="ai-event-icon">📝</div>
+          <div className="ai-event-info">
+            <div className="ai-event-title">{note.title}</div>
+            {note.content && <div className="ai-event-date">{note.content.slice(0, 80)}</div>}
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+)}
+
+{m.todos?.length > 0 && (
+  <div className="ai-events-list">
+    {m.todos.map((todo) => (
+      <div key={todo.id} className="ai-event-card" style={{ borderLeft: '3px solid #10b981' }}>
+        <div className="ai-event-card-top">
+          <div className="ai-event-icon">☑️</div>
+          <div className="ai-event-info">
+            <div className="ai-event-title" style={{ textDecoration: todo.completed ? 'line-through' : 'none' }}>
+              {todo.title}
+            </div>
+            <div className="ai-event-date">Priority: {todo.priority}</div>
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+)}
                 
                 {m.type === 'conflict' && m.conflict && (
                   <div className="ai-conflict-card">
@@ -1157,6 +1273,21 @@ function AIPanel({ open, onClose, events, today, conflicts, onApplySuggestion, o
               </div>
             </div>
           )}
+        </div>
+
+        <div className="ai-quick-chips">
+          <button type="button" className="ai-chip" onClick={() => send("Brief me on today")}>
+            🌅 Briefing
+          </button>
+          <button type="button" className="ai-chip" onClick={() => send("When am I free today?")}>
+            🕒 Free Time
+          </button>
+          <button type="button" className="ai-chip" onClick={() => send("Do I have any conflicts?")}>
+            ⚠️ Conflicts
+          </button>
+          <button type="button" className="ai-chip" onClick={() => send("What tasks do I have?")}>
+            ☑️ To-dos
+          </button>
         </div>
 
         <form className="ai-input-row" onSubmit={(e) => { e.preventDefault(); send(input); }}>
@@ -1238,6 +1369,8 @@ export default function App() {
   const today = now;
 
   const [events, setEvents] = useState([]);
+  const [currentSection, setCurrentSection] = useState('calendar');
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [view, setView] = useState('month');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [search, setSearch] = useState('');
@@ -1291,6 +1424,23 @@ export default function App() {
     data: { title: '', description: '', date: isoDate(date || currentDate), start: '09:00', end: '10:00', category: 'work', priority: 'Medium', location: '' },
   });
   const openEdit = (event) => { setDetailsEvent(null); setModal({ mode: 'edit', data: event }); };
+
+  const handleScheduleFromOther = (item) => {
+    setCurrentSection('calendar');
+    setModal({
+      mode: 'create',
+      data: {
+        title: item.title || '',
+        description: item.description || '',
+        date: item.date || isoDate(currentDate),
+        start: '09:00',
+        end: '10:00',
+        category: item.category || 'work',
+        priority: item.priority || 'Medium',
+        location: item.location || '',
+      },
+    });
+  };
 
   const saveEvent = async (data) => {
     const editing = Boolean(data.id && !String(data.id).startsWith('ev-'));
@@ -1363,6 +1513,7 @@ export default function App() {
   return (
     <Login
       onCreateAccount={() => setShowCreateAccount(true)}
+      onGuestLogin={() => setSession({ user: { email: 'guest@nova.ai', user_metadata: { full_name: 'Jyothi' } } })}
     />
   );
 }
@@ -1373,17 +1524,35 @@ export default function App() {
         view={view} setView={setView} currentDate={currentDate} goToday={goToday}
         activeCats={activeCats} toggleCat={toggleCat}
         mobileOpen={mobileNavOpen} closeMobile={() => setMobileNavOpen(false)}
+        currentSection={currentSection} setCurrentSection={setCurrentSection}
+        onOpenSettings={() => setSettingsOpen(true)}
       />
 
       <div className="main-col">
         <TopBar
           view={view} setView={setView} currentDate={currentDate}
-          onPrev={goPrev} onNext={goNext} onToday={goToday} label={periodLabel}
+          onPrev={goPrev} onNext={goNext} onToday={goToday}
+          label={
+            currentSection === 'notes'
+              ? 'Notes & Reflections'
+              : currentSection === 'to-do'
+              ? 'To-Do List & Tasks'
+              : currentSection === 'habits'
+              ? 'Daily Habits & Streaks'
+              : periodLabel
+          }
           search={search} setSearch={setSearch}
-          onNewEvent={() => openCreate(currentDate)}
+          onNewEvent={() => {
+            if (currentSection !== 'calendar') {
+              setCurrentSection('calendar');
+            }
+            openCreate(currentDate);
+          }}
           onOpenAI={() => setAiOpen(true)}
           onMenu={() => setMobileNavOpen(true)}
           handleLogout={handleLogout}
+          currentSection={currentSection}
+          onOpenSettings={() => setSettingsOpen(true)}
         />
 
         {bannerConflict && (
@@ -1418,7 +1587,8 @@ export default function App() {
           </div>
         </section>
 
-        <div className="workspace-grid">
+        {currentSection === 'calendar' && (
+          <div className="workspace-grid">
           <div className="calendar-area">
 
   {/* Calendar controls */}
@@ -1557,6 +1727,36 @@ export default function App() {
           </aside>
           )}
         </div>
+        )}
+
+        {currentSection === 'notes' && (
+          <div className="workspace-pane" style={{ padding: '8px 24px 48px 24px' }}>
+            <NotesView
+              apiBase={API_BASE}
+              flashToast={flashToast}
+              onScheduleEvent={handleScheduleFromOther}
+            />
+          </div>
+        )}
+
+        {currentSection === 'to-do' && (
+          <div className="workspace-pane" style={{ padding: '8px 24px 48px 24px' }}>
+            <TodoView
+              apiBase={API_BASE}
+              flashToast={flashToast}
+              onScheduleEvent={handleScheduleFromOther}
+            />
+          </div>
+        )}
+
+        {currentSection === 'habits' && (
+          <div className="workspace-pane" style={{ padding: '8px 24px 48px 24px' }}>
+            <HabitsView
+              apiBase={API_BASE}
+              flashToast={flashToast}
+            />
+          </div>
+        )}
       </div>
 
       <AIPanel
@@ -1581,6 +1781,16 @@ export default function App() {
           onClose={() => setDetailsEvent(null)}
           onEdit={openEdit}
           onDelete={deleteEvent}
+        />
+      )}
+
+      {settingsOpen && (
+        <SettingsModal
+          user={session?.user}
+          defaultView={view}
+          setDefaultView={setView}
+          flashToast={flashToast}
+          onClose={() => setSettingsOpen(false)}
         />
       )}
 

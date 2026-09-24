@@ -3,12 +3,18 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Import models so SQLAlchemy knows about them
 from app.models.event import Event, Base
+from app.models.note import Note
+from app.models.todo import Todo
+from app.models.habit import Habit
+from app.models.user import User
 
 
 from app.database.connection import engine
 from app.database.events import router as events_router
-
 from app.api.nova import router as nova_router
+from app.api.notes import router as notes_router
+from app.api.todos import router as todos_router
+from app.api.habits import router as habits_router
 
 from app.services.speech import transcribe_audio
 
@@ -20,7 +26,7 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="AI Calendar Assistant",
-    description="AI-powered calendar and scheduling assistant",
+    description="AI-powered calendar, notes, to-dos and scheduling assistant",
     version="1.0.0"
 )
 
@@ -34,6 +40,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "*",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -47,6 +54,9 @@ app.add_middleware(
 
 app.include_router(events_router)
 app.include_router(nova_router)
+app.include_router(notes_router)
+app.include_router(todos_router)
+app.include_router(habits_router)
 
 
 # ---------------------------------------------------------

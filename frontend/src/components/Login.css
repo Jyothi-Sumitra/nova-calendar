@@ -417,7 +417,7 @@
 }
 
 .nova-field-input input::placeholder {
-  color: #6b6152;
+  color: var(--nova-muted, #8f7d8b);
 }
 
 .nova-field-input input:focus {
