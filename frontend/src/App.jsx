@@ -1011,7 +1011,7 @@ function EventDetails({ event, onClose, onEdit, onDelete }) {
 }
 
 /* ============================== AI ASSISTANT PANEL ============================== */
-function AIPanel({ open, onClose, events, today, conflicts, onApplySuggestion, onCalendarChanged }) {
+function AIPanel({ open, onClose, events, today, conflicts, onApplySuggestion, onCalendarChanged, session }) {
   const [messages, setMessages] = useState([
     { id: 'm0', role: 'ai', type: 'text', text: "Hi Jyothi — I'm your calendar assistant. Ask me about your schedule, free time, or let me help resolve a conflict." },
   ]);
@@ -1044,9 +1044,12 @@ function AIPanel({ open, onClose, events, today, conflicts, onApplySuggestion, o
       }));
 
     try {
+      const authHeaders = session?.access_token
+        ? { Authorization: `Bearer ${session.access_token}` }
+        : {};
       const resultResponse = await fetch(`${API_BASE}/nova/command`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({ transcript: trimmed, history }),
       });
       const rawText = await resultResponse.text();
@@ -1054,13 +1057,16 @@ function AIPanel({ open, onClose, events, today, conflicts, onApplySuggestion, o
       try {
         result = JSON.parse(rawText);
       } catch {
+        const isVercelError = rawText.startsWith('A server error') || rawText.includes('FUNCTION_INVOCATION_FAILED');
         throw new Error(
           resultResponse.ok
             ? 'NOVA returned an invalid response.'
+            : isVercelError
+            ? 'The AI server is starting up or temporarily unavailable. Please try again in a few moments.'
             : `Server error (${resultResponse.status}): ${rawText.slice(0, 100) || 'Backend service is unavailable.'}`
         );
       }
-      if (!resultResponse.ok) throw new Error(result.detail || result.message || 'NOVA could not process that request.');
+      if (!resultResponse.ok) throw new Error(result.detail || result.message || result.error || 'NOVA could not process that request.');
       setThinking(null);
       setMessages((m) => [
         ...m,
@@ -1785,6 +1791,7 @@ export default function App() {
         events={visibleEvents} today={today} conflicts={conflicts}
         onApplySuggestion={applyAISuggestion}
         onCalendarChanged={loadEvents}
+        session={session}
       />
 
       {modal && (

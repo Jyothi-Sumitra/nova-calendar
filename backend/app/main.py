@@ -25,17 +25,18 @@ from app.api.todos import router as todos_router
 from app.api.habits import router as habits_router
 from app.services.speech import transcribe_audio
 
-# Ensure database tables exist
-try:
-    Base.metadata.create_all(bind=engine)
-except Exception as _db_err:
-    print("Database table initialization notice:", repr(_db_err))
-
 app = FastAPI(
     title="AI Calendar Assistant",
     description="AI-powered calendar, notes, to-dos and scheduling assistant",
     version="1.0.0",
 )
+
+@app.on_event("startup")
+def on_startup():
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as _db_err:
+        print("Database table initialization notice:", repr(_db_err))
 
 app.add_middleware(
     CORSMiddleware,
@@ -43,8 +44,8 @@ app.add_middleware(
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "https://nova-calendar.vercel.app",
-        "*",
     ],
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

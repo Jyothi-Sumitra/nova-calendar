@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from uuid import UUID
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 import re
 
 from sqlalchemy.orm import Session
@@ -21,7 +23,7 @@ WEEKDAYS = {
 }
 
 
-def _date(value: str | None, now: datetime) -> datetime.date | None:
+def _date(value: str | None, now: datetime) -> date | None:
     if not value:
         return None
     value = value.strip().lower()
@@ -118,10 +120,10 @@ def _clean_conflict(c: dict) -> dict:
 def _find_matching_event(
     db: Session,
     query: str | None,
-    target_date: datetime.date | None = None,
+    target_date: date | None = None,
     target_time: time | None = None,
     now: datetime | None = None,
-) -> list[Event]:
+):
     """Smartly match events by keyword, time of day, relative position (next/last), or date."""
     now = now or datetime.now()
     events = (
@@ -208,7 +210,7 @@ def _find_matching_event(
 
 
 def _free_slots_for_day(
-    db: Session, day: datetime.date, now: datetime | None = None
+    db: Session, day: date, now: datetime | None = None
 ) -> list[dict]:
     """Return available time gaps between 08:00 and 20:00 for a calendar day."""
     day_start = datetime.combine(day, time(8, 0))

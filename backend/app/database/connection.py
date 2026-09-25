@@ -7,8 +7,12 @@ from sqlalchemy.orm import sessionmaker
 load_dotenv()
 
 # Local development keeps using the existing SQLite database.
-# Production uses the Supabase PostgreSQL connection string from DATABASE_URL.
-DATABASE_URL = os.getenv("DATABASE_URL")
+# Production uses the Supabase PostgreSQL connection string from DATABASE_URL or POSTGRES_URL.
+DATABASE_URL = (
+    os.getenv("DATABASE_URL")
+    or os.getenv("POSTGRES_URL")
+    or os.getenv("SUPABASE_DATABASE_URL")
+)
 if not DATABASE_URL:
     if os.getenv("VERCEL"):
         DATABASE_URL = "sqlite:////tmp/calendar.db"
@@ -26,6 +30,9 @@ engine_kwargs = {}
 
 if DATABASE_URL.startswith("sqlite"):
     engine_kwargs["connect_args"] = {"check_same_thread": False}
+else:
+    engine_kwargs["pool_pre_ping"] = True
+    engine_kwargs["pool_recycle"] = 300
 
 engine = create_engine(
     DATABASE_URL,
