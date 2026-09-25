@@ -63,7 +63,7 @@ const PRIORITIES = ['Low', 'Medium', 'High'];
 const HOUR_START = 7;
 const HOUR_END = 21;
 const HOUR_HEIGHT = 64;
-const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 const eventToUI = (event) => {
   const start = new Date(event.start_time);

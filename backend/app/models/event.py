@@ -1,6 +1,7 @@
 from datetime import datetime
+from uuid import UUID
 
-from sqlalchemy import DateTime, Integer, String, Text
+from sqlalchemy import DateTime, Integer, String, Text, Uuid
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -14,61 +15,67 @@ class Event(Base):
     id: Mapped[int] = mapped_column(
         Integer,
         primary_key=True,
-        index=True
+        index=True,
+    )
+
+    user_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        nullable=False,
+        index=True,
     )
 
     title: Mapped[str] = mapped_column(
         String(200),
-        nullable=False
+        nullable=False,
     )
 
     description: Mapped[str | None] = mapped_column(
         Text,
-        nullable=True
+        nullable=True,
     )
 
     start_time: Mapped[datetime] = mapped_column(
         DateTime,
-        nullable=False
+        nullable=False,
     )
 
     end_time: Mapped[datetime] = mapped_column(
         DateTime,
-        nullable=False
+        nullable=False,
     )
 
     location: Mapped[str | None] = mapped_column(
         String(255),
-        nullable=True
+        nullable=True,
     )
 
     priority: Mapped[str] = mapped_column(
         String(20),
         default="medium",
-        nullable=False
+        nullable=False,
     )
 
     category: Mapped[str] = mapped_column(
         String(50),
         default="task",
-        nullable=False
+        nullable=False,
     )
 
     status: Mapped[str] = mapped_column(
         String(20),
         default="scheduled",
-        nullable=False
+        nullable=False,
     )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=datetime.utcnow,
-        nullable=False
+        nullable=False,
     )
 
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
-        nullable=False
+        nullable=False,
     )

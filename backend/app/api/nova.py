@@ -1,8 +1,11 @@
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.agents.calendar_agent import understand_command
+from app.api.auth import get_current_user_id
 from app.database.connection import get_db
 from app.services.nova import execute_intent
 
@@ -20,28 +23,30 @@ class NovaCommand(BaseModel):
 
 
 @router.post("/command")
-def run_command(command: NovaCommand, db: Session = Depends(get_db)):
+def run_command(
+    command: NovaCommand,
+    db: Session = Depends(get_db),
+    user_id: UUID = Depends(get_current_user_id),
+):
     try:
         history_dicts = [{"role": h.role, "content": h.content} for h in command.history]
         intent = understand_command(command.transcript, history=history_dicts)
-        result = execute_intent(db, intent)
-        return {"transcript": command.transcript, "intent": intent.intent, **result}
-
+        result = execute_intent(db, intent, user_id=user_id)
+        return {
+            "transcript": command.transcript,
+            "intent": intent.intent,
+            **result,
+        }
     except (ValueError, KeyError) as error:
         raise HTTPException(
             status_code=422,
-            detail="NOVA couldn't understand that request. Please try again."
+            detail="NOVA couldn't understand that request. Please try phrasing that request again.",
         ) from error
-
     except RuntimeError as error:
-        raise HTTPException(
-            status_code=503,
-            detail=str(error)
-        ) from error
-
+        raise HTTPException(status_code=503, detail=str(error)) from error
     except Exception as error:
         print("NOVA ERROR:", repr(error))
         raise HTTPException(
             status_code=502,
-            detail=f"NOVA could not process that request: {error}"
+            detail=f"NOVA could not process that request: {error}",
         ) from error
