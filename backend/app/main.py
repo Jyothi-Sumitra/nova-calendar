@@ -1,3 +1,11 @@
+import sys
+from pathlib import Path
+
+# Ensure the backend directory is in sys.path so 'app' imports work in all execution environments (e.g. Vercel)
+BASE_DIR = Path(__file__).resolve().parent.parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
@@ -16,6 +24,12 @@ from app.api.notes import router as notes_router
 from app.api.todos import router as todos_router
 from app.api.habits import router as habits_router
 from app.services.speech import transcribe_audio
+
+# Ensure database tables exist
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as _db_err:
+    print("Database table initialization notice:", repr(_db_err))
 
 app = FastAPI(
     title="AI Calendar Assistant",

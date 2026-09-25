@@ -447,7 +447,7 @@ def execute_intent(
             formatted_conflicts = [_clean_conflict(c) for c in conflict["conflicts"]]
             conflicting_names = ", ".join(
                 [
-                    f'"{c.get("title", "Event")}" ({_format_time(c.get("start_time"))} ΓÇô {_format_time(c.get("end_time"))})'
+                    f'"{c.get("title", "Event")}" ({_format_time(c.get("start_time"))} - {_format_time(c.get("end_time"))})'
                     for c in conflict["conflicts"]
                 ]
             )
@@ -523,7 +523,7 @@ def execute_intent(
             formatted_conflicts = [_clean_conflict(c) for c in conflict["conflicts"]]
             conflicting_names = ", ".join(
                 [
-                    f'"{c.get("title", "Event")}" ({_format_time(c.get("start_time"))} ΓÇô {_format_time(c.get("end_time"))})'
+                    f'"{c.get("title", "Event")}" ({_format_time(c.get("start_time"))} - {_format_time(c.get("end_time"))})'
                     for c in conflict["conflicts"]
                 ]
             )
@@ -652,7 +652,7 @@ def execute_intent(
             parts.append(f"Your calendar is completely open {day_label}.")
 
         if conflicts:
-            parts.append(f"ΓÜá∩╕Å You have {len(conflicts)} conflict{'s' if len(conflicts) != 1 else ''} to resolve.")
+            parts.append(f"⚠️ You have {len(conflicts)} conflict{'s' if len(conflicts) != 1 else ''} to resolve.")
 
         if todos:
             parts.append(f"You have {len(todos)} pending tasks (top priority: \"{todos[0].title}\").")
@@ -660,7 +660,7 @@ def execute_intent(
         if free_slots:
             s_time = datetime.fromisoformat(free_slots[0]["start_time"]).strftime("%I:%M %p").lstrip("0")
             e_time = datetime.fromisoformat(free_slots[0]["end_time"]).strftime("%I:%M %p").lstrip("0")
-            parts.append(f"Next open window: {s_time} ΓÇô {e_time}.")
+            parts.append(f"Next open window: {s_time} - {e_time}.")
 
         return {
             "ok": True,
@@ -744,7 +744,7 @@ def execute_intent(
         return {
             "ok": True,
             "status": "success",
-            "message": f"Great job! I've marked \"{target.title}\" as completed. ≡ƒÄë",
+            "message": f"Great job! I've marked \"{target.title}\" as completed. 🎉",
             "changed": True,
         }
 

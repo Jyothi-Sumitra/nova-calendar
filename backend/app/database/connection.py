@@ -8,16 +8,19 @@ load_dotenv()
 
 # Local development keeps using the existing SQLite database.
 # Production uses the Supabase PostgreSQL connection string from DATABASE_URL.
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./calendar.db")
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    if os.getenv("VERCEL"):
+        DATABASE_URL = "sqlite:////tmp/calendar.db"
+    else:
+        DATABASE_URL = "sqlite:///./calendar.db"
 
-# SQLAlchemy's bare postgresql:// URL normally expects psycopg2.
+# SQLAlchemy's bare postgresql:// or postgres:// URL normally expects psycopg2.
 # This project uses psycopg v3, so explicitly select the psycopg driver.
-if DATABASE_URL.startswith("postgresql://"):
-    DATABASE_URL = DATABASE_URL.replace(
-        "postgresql://",
-        "postgresql+psycopg://",
-        1,
-    )
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
+elif DATABASE_URL.startswith("postgresql://") and "+psycopg" not in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
 
 engine_kwargs = {}
 

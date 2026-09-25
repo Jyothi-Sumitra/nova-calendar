@@ -767,8 +767,9 @@ function EventModal({ initial, onClose, onSave, onDelete }) {
 
   try {
     const conflictUrl = new URL(
-  `${API_BASE}/events/check-conflict`
-);
+      `${API_BASE}/events/check-conflict`,
+      typeof window !== 'undefined' ? window.location.origin : 'http://localhost'
+    );
 
 if (isEdit && form.id) {
   conflictUrl.searchParams.set("exclude_event_id", form.id);
@@ -1048,8 +1049,18 @@ function AIPanel({ open, onClose, events, today, conflicts, onApplySuggestion, o
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transcript: trimmed, history }),
       });
-      const result = await resultResponse.json();
-      if (!resultResponse.ok) throw new Error(result.detail || 'NOVA could not process that request.');
+      const rawText = await resultResponse.text();
+      let result;
+      try {
+        result = JSON.parse(rawText);
+      } catch {
+        throw new Error(
+          resultResponse.ok
+            ? 'NOVA returned an invalid response.'
+            : `Server error (${resultResponse.status}): ${rawText.slice(0, 100) || 'Backend service is unavailable.'}`
+        );
+      }
+      if (!resultResponse.ok) throw new Error(result.detail || result.message || 'NOVA could not process that request.');
       setThinking(null);
       setMessages((m) => [
         ...m,
@@ -1099,7 +1110,17 @@ function AIPanel({ open, onClose, events, today, conflicts, onApplySuggestion, o
           const body = new FormData();
           body.append('audio', audio, 'voice.webm');
           const response = await fetch(`${API_BASE}/voice/transcribe`, { method: 'POST', body });
-          const result = await response.json();
+          const rawText = await response.text();
+          let result;
+          try {
+            result = JSON.parse(rawText);
+          } catch {
+            throw new Error(
+              response.ok
+                ? 'Invalid transcription response.'
+                : `Transcription error (${response.status}): ${rawText.slice(0, 100)}`
+            );
+          }
           if (!response.ok) throw new Error(result.detail || 'Transcription failed.');
           const transcript = result.text?.trim();
           if (!transcript) throw new Error('No speech was detected. Please try again.');
