@@ -15,7 +15,6 @@ from app.models.event import Event, Base
 from app.models.note import Note
 from app.models.todo import Todo
 from app.models.habit import Habit
-from app.models.user import User
 
 from app.database.connection import engine
 from app.database.events import router as events_router
