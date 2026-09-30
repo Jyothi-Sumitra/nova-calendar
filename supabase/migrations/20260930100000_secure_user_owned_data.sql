@@ -23,8 +23,6 @@ alter table public.events enable row level security;
 alter table public.notes enable row level security;
 alter table public.todos enable row level security;
 alter table public.habits enable row level security;
-alter table public.users enable row level security;
-
 create policy "Users can read own events" on public.events for select to authenticated using ((select auth.uid()) = user_id);
 create policy "Users can insert own events" on public.events for insert to authenticated with check ((select auth.uid()) = user_id);
 create policy "Users can update own events" on public.events for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
@@ -45,5 +43,4 @@ create policy "Users can insert own habits" on public.habits for insert to authe
 create policy "Users can update own habits" on public.habits for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 create policy "Users can delete own habits" on public.habits for delete to authenticated using ((select auth.uid()) = user_id);
 
--- public.users is legacy and unused by Supabase Auth. RLS is intentionally enabled
--- without policies so its password_hash column is not exposed through the Data API.
+create policy "Legacy users table is inaccessible" on public.users for all to authenticated using (false) with check (false);
