@@ -300,6 +300,7 @@ def execute_intent(
                 db.query(Event)
                 .filter(
                     Event.status != "cancelled",
+                    Event.user_id == user_id,
                     Event.start_time < end,
                     Event.end_time > start,
                 )
@@ -310,7 +311,7 @@ def execute_intent(
         else:
             events = (
                 db.query(Event)
-                .filter(Event.status != "cancelled", Event.end_time >= now)
+                .filter(Event.status != "cancelled", Event.user_id == user_id, Event.end_time >= now)
                 .order_by(Event.start_time)
                 .all()
             )
@@ -335,7 +336,7 @@ def execute_intent(
     if intent.intent == "GET_NEXT_EVENT":
         event = (
             db.query(Event)
-            .filter(Event.status != "cancelled", Event.start_time >= now)
+            .filter(Event.status != "cancelled", Event.user_id == user_id, Event.start_time >= now)
             .order_by(Event.start_time)
             .first()
         )
@@ -422,7 +423,7 @@ def execute_intent(
 
         # If time is omitted, find the first comfortable opening on that day!
         if not start_clock:
-            free = _free_slots_for_day(db, day, now)
+            free = _free_slots_for_day(db, day, now, user_id=user_id)
             if free:
                 first_free_dt = datetime.fromisoformat(free[0]["start_time"])
                 start_clock = first_free_dt.time()
@@ -555,7 +556,7 @@ def execute_intent(
     if intent.intent == "DELETE_EVENT":
         target_day = _date(intent.date, now)
         target_clock = _time(intent.start_time)
-        matches = _find_matching_event(db, intent.event_query, target_day, target_clock, now)
+        matches = _find_matching_event(db, intent.event_query, target_day, target_clock, now, user_id=user_id)
 
         if not matches:
             return {
@@ -637,7 +638,7 @@ def execute_intent(
             .order_by(Todo.due_date.asc().nullslast())
             .all()
         )
-        conflicts = find_all_conflicts(db)
+        conflicts = find_all_conflicts(db, user_id=user_id)
         free_slots = _free_slots_for_day(db, day, now)
 
         day_label = "today" if day == now.date() else f"on {day.strftime('%A, %b %d')}"
