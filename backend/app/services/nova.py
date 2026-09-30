@@ -123,15 +123,14 @@ def _find_matching_event(
     target_date: date | None = None,
     target_time: time | None = None,
     now: datetime | None = None,
+    user_id: UUID | None = None,
 ):
     """Smartly match events by keyword, time of day, relative position (next/last), or date."""
     now = now or datetime.now()
-    events = (
-        db.query(Event)
-        .filter(Event.status != "cancelled")
-        .order_by(Event.start_time)
-        .all()
-    )
+    query = db.query(Event).filter(Event.status != "cancelled")
+    if user_id is not None:
+        query = query.filter(Event.user_id == user_id)
+    events = query.order_by(Event.start_time).all()
     if not events:
         return []
 
@@ -210,22 +209,20 @@ def _find_matching_event(
 
 
 def _free_slots_for_day(
-    db: Session, day: date, now: datetime | None = None
+    db: Session, day: date, now: datetime | None = None, user_id: UUID | None = None
 ) -> list[dict]:
     """Return available time gaps between 08:00 and 20:00 for a calendar day."""
     day_start = datetime.combine(day, time(8, 0))
     day_end = datetime.combine(day, time(20, 0))
 
-    events = (
-        db.query(Event)
-        .filter(
-            Event.status != "cancelled",
-            Event.start_time < day_end,
-            Event.end_time > day_start,
-        )
-        .order_by(Event.start_time)
-        .all()
+    query = db.query(Event).filter(
+        Event.status != "cancelled",
+        Event.start_time < day_end,
+        Event.end_time > day_start,
     )
+    if user_id is not None:
+        query = query.filter(Event.user_id == user_id)
+    events = query.order_by(Event.start_time).all()
 
     busy_periods = []
     for event in events:
@@ -362,7 +359,7 @@ def execute_intent(
 
     # 5. GET_CONFLICTS
     if intent.intent == "GET_CONFLICTS":
-        conflicts = find_all_conflicts(db)
+        conflicts = find_all_conflicts(db, user_id=user_id)
         if not conflicts:
             return {
                 "ok": True,
@@ -387,7 +384,7 @@ def execute_intent(
     # 6. GET_FREE_SLOTS
     if intent.intent == "GET_FREE_SLOTS":
         day = _date(intent.date, now) or now.date()
-        free_slots = _free_slots_for_day(db, day, now)
+        free_slots = _free_slots_for_day(db, day, now, user_id=user_id)
         label = f"{day:%A, %B} {day.day}"
         if not free_slots:
             return {
@@ -443,7 +440,7 @@ def execute_intent(
             end = start + timedelta(minutes=duration)
 
         # Conflict check
-        conflict = get_conflict_details(db, start, end)
+        conflict = get_conflict_details(db, start, end, user_id=user_id)
         if conflict["has_conflict"]:
             free_slots = _free_slots_for_day(db, day, now)
             formatted_conflicts = [_clean_conflict(c) for c in conflict["conflicts"]]
@@ -468,7 +465,7 @@ def execute_intent(
             }
 
         event = Event(
-            user_id=user_id or UUID("00000000-0000-0000-0000-000000000001"),
+            user_id=user_id,
             title=title,
             start_time=start,
             end_time=end,
@@ -496,7 +493,7 @@ def execute_intent(
     if intent.intent == "RESCHEDULE_EVENT":
         target_day = _date(intent.date, now)
         target_clock = _time(intent.start_time)
-        matches = _find_matching_event(db, intent.event_query, target_day, target_clock, now)
+        matches = _find_matching_event(db, intent.event_query, target_day, target_clock, now, user_id=user_id)
 
         if not matches:
             return {
@@ -519,9 +516,9 @@ def execute_intent(
         duration = event.end_time - event.start_time
         end = start + duration
 
-        conflict = get_conflict_details(db, start, end, exclude_event_id=event.id)
+        conflict = get_conflict_details(db, start, end, exclude_event_id=event.id, user_id=user_id)
         if conflict["has_conflict"]:
-            free_slots = _free_slots_for_day(db, new_day, now)
+            free_slots = _free_slots_for_day(db, new_day, now, user_id=user_id)
             formatted_conflicts = [_clean_conflict(c) for c in conflict["conflicts"]]
             conflicting_names = ", ".join(
                 [
@@ -595,6 +592,7 @@ def execute_intent(
             db.query(Event)
             .filter(
                 Event.status != "cancelled",
+                Event.user_id == user_id,
                 Event.start_time < end,
                 Event.end_time > start,
             )
@@ -635,7 +633,7 @@ def execute_intent(
         )
         todos = (
             db.query(Todo)
-            .filter(Todo.completed == False)
+            .filter(Todo.completed == False, Todo.user_id == user_id)
             .order_by(Todo.due_date.asc().nullslast())
             .all()
         )
@@ -683,6 +681,7 @@ def execute_intent(
                 t = _time(intent.start_time) or time(17, 0)
                 due_date = datetime.combine(d, t)
         todo = Todo(
+            user_id=user_id,
             title=title,
             description=intent.content,
             priority=(intent.priority or "medium").lower(),
@@ -726,7 +725,7 @@ def execute_intent(
     # 14. COMPLETE_TODO
     if intent.intent == "COMPLETE_TODO":
         query = (intent.title or intent.event_query or "").strip().lower()
-        todos = db.query(Todo).filter(Todo.completed == False).all()
+        todos = db.query(Todo).filter(Todo.completed == False, Todo.user_id == user_id).all()
         if not todos:
             return {
                 "ok": True,
@@ -754,7 +753,7 @@ def execute_intent(
     if intent.intent == "CREATE_NOTE":
         title = intent.title or intent.event_query or "Quick Note"
         content = intent.content or ""
-        note = Note(title=title, content=content, category=intent.category or "general")
+        note = Note(user_id=user_id, title=title, content=content, category=intent.category or "general")
         db.add(note)
         db.commit()
         db.refresh(note)
@@ -768,7 +767,7 @@ def execute_intent(
     # 16. GET_NOTES
     if intent.intent == "GET_NOTES":
         notes = (
-            db.query(Note)
+            db.query(Note).filter(Note.user_id == user_id)
             .order_by(Note.is_pinned.desc(), Note.updated_at.desc())
             .limit(10)
             .all()
