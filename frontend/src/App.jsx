@@ -1540,7 +1540,6 @@ export default function App() {
   return (
     <Login
       onCreateAccount={() => setShowCreateAccount(true)}
-      onGuestLogin={() => setSession({ user: { email: 'guest@nova.ai', user_metadata: { full_name: 'Jyothi' } } })}
     />
   );
 }
